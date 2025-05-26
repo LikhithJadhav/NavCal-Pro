@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Campus Interview Scheduler</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f8f8f8;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+    }
+    .input-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    textarea, input {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      font-family: monospace;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      cursor: pointer;
+      padding: 10px 20px;
+      border-radius: 4px;
+      font-size: 16px;
+      width: 100%;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    pre {
+      background: white;
+      padding: 15px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    .error {
+      color: red;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Campus Interview Scheduler</h1>
+
+<div class="input-group">
+  <label>Time Slot (start end):</label>
+  <input id="timeSlot" value="09:00 12:00" placeholder="HH:MM HH:MM">
+  <div id="timeSlotError" class="error"></div>
+</div>
+
+<div class="input-group">
+  <label>Companies (one per line: name duration rounds panels):</label>
+  <textarea id="companies" rows="5" placeholder="CompanyName DurationInMinutes NumberOfRounds NumberOfPanels">A 30 2 2
+B 45 1 1</textarea>
+  <div id="companiesError" class="error"></div>
+</div>
+
+<div class="input-group">
+  <label>Students (one per line: roll comp1 comp2 ...):</label>
+  <textarea id="students" rows="5" placeholder="StudentRollNumber Company1 Company2 ...">S1 A B
+S2 A
+S3 B</textarea>
+  <div id="studentsError" class="error"></div>
+</div>
+
+<button onclick="schedule()">Generate Schedule</button>
+
+<h2>Output:</h2>
+<pre id="output"></pre>
+
+<script>
+function timeToMinutes(t) {
+  const [h, m] = t.split(':').map(Number);
+  if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) {
+    throw new Error('Invalid time format');
+  }
+  return h * 60 + m;
+}
+
+function minutesToTime(mins) {
+  const h = String(Math.floor(mins / 60)).padStart(2, '0');
+  const m = String(mins % 60).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+function validateInput() {
+  const timeSlot = document.getElementById("timeSlot").value.trim();
+  const companies = document.getElementById("companies").value.trim();
+  const students = document.getElementById("students").value.trim();
+  
+  let isValid = true;
+  
+  // Validate time slot
+  try {
+    const [start, end] = timeSlot.split(" ");
+    if (!start || !end) throw new Error('Invalid time slot format');
+    const startTime = timeToMinutes(start);
+    const endTime = timeToMinutes(end);
+    if (startTime >= endTime) throw new Error('Start time must be before end time');
+  } catch (e) {
+    document.getElementById("timeSlotError").textContent = e.message;
+    isValid = false;
+  }
+  
+  // Validate companies
+  if (!companies) {
+    document.getElementById("companiesError").textContent = 'Please enter company details';
+    isValid = false;
+  }
+  
+  // Validate students
+  if (!students) {
+    document.getElementById("studentsError").textContent = 'Please enter student details';
+    isValid = false;
+  }
+  
+  return isValid;
+}
+
+function schedule() {
+  // Clear previous errors
+  document.getElementById("timeSlotError").textContent = '';
+  document.getElementById("companiesError").textContent = '';
+  document.getElementById("studentsError").textContent = '';
+  
+  if (!validateInput()) {
+    return;
+  }
+
+  const [startStr, endStr] = document.getElementById("timeSlot").value.split(" ");
+  const startTime = timeToMinutes(startStr);
+  const endTime = timeToMinutes(endStr);
+  const totalMins = endTime - startTime;
+
+  const companyLines = document.getElementById("companies").value.trim().split("\n");
+  const companies = {};
+  for (let line of companyLines) {
+    let [name, dur, rounds, panels] = line.split(" ");
+    dur = +dur; rounds = +rounds; panels = +panels;
+    if (isNaN(dur) || isNaN(rounds) || isNaN(panels) || dur <= 0 || rounds <= 0 || panels <= 0) {
+      document.getElementById("companiesError").textContent = 'Invalid company details format';
+      return;
+    }
+    companies[name] = {
+      name, dur, rounds, panels,
+      availability: Array.from({ length: panels }, () => Array(totalMins).fill(false))
+    };
+  }
+
+  const studentLines = document.getElementById("students").value.trim().split("\n");
+  const students = studentLines.map(line => {
+    const [roll, ...comps] = line.trim().split(" ");
+    return { 
+      roll, 
+      comps, 
+      schedule: [], 
+      conflicts: [],
+      currTime: 0  // Track current time for each student
+    };
+  });
+
+  for (let student of students) {
+    for (let cname of student.comps) {
+      const comp = companies[cname];
+      if (!comp) {
+        student.conflicts.push(`Invalid company: ${cname}`);
+        continue;
+      }
+      
+      let success = true;
+
+      for (let round = 1; round <= comp.rounds; round++) {
+        let scheduled = false;
+
+        // Start searching from student's current time
+        for (let t = student.currTime; t + comp.dur <= totalMins; t++) {
+          for (let p = 0; p < comp.panels; p++) {
+            let canFit = true;
+            for (let d = 0; d < comp.dur; d++) {
+              if (comp.availability[p][t + d]) {
+                canFit = false;
+                break;
+              }
+            }
+            if (canFit) {
+              for (let d = 0; d < comp.dur; d++) comp.availability[p][t + d] = true;
+              student.schedule.push({
+                cname,
+                round,
+                start: t,
+                end: t + comp.dur,
+                panel: p + 1
+              });
+              student.currTime = t + comp.dur;  // Update student's current time
+              scheduled = true;
+              break;
+            }
+          }
+          if (scheduled) break;
+        }
+        if (!scheduled) {
+          success = false;
+          break;
+        }
+      }
+
+      if (!success) student.conflicts.push(cname);
+    }
+  }
+
+  let output = "";
+  for (let student of students) {
+    output += `${student.roll}\nCompany Round Start End Panel\n`;
+    for (let iv of student.schedule) {
+      output += `${iv.cname} ${iv.round} ${minutesToTime(iv.start + startTime)} ${minutesToTime(iv.end + startTime)} ${iv.panel}\n`;
+    }
+    for (let c of student.conflicts) {
+      output += `Conflict for ${student.roll}: ${c}\n`;
+    }
+    output += "\n";
+  }
+
+  document.getElementById("output").textContent = output;
+}
+</script>
+
+</body>
+</html> 
