@@ -38,9 +38,17 @@ dependencies:
   intl: ^0.18.1
   timezone: ^0.10.1
   permission_handler: ^11.0.1
+  open_file: ^3.3.2
+  android_alarm_manager_plus: ^4.0.7
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  flutter_timezone: ^4.1.1
+  workmanager: ^0.7.0
+  local_auth: ^2.3.0
+  flutter_secure_storage: ^9.2.4
+  pin_code_fields: ^8.0.1
+  local_auth_android: ^1.0.49
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
@@ -67,7 +75,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/app_icon.jpg
-    - assets/splash.jpg
+    - assets/splash.jpeg
+    - assets/splash1.jpeg
     - assets/csb.png
     - assets/horizontal.png
     - assets/vertical.png
@@ -79,6 +88,9 @@ flutter:
     - assets/table-3.png
     - assets/table-4.png
     - assets/bigtable.png
+    - assets/DVOR.jpg
+    - assets/Azimuth_1.png
+    - assets/Azimuth_2.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
@@ -118,17 +130,18 @@ flutter_icons:
 
 
 flutter_native_splash:
-  image: "assets/splash.jpg"
+  image: assets/splash1.jpeg
+  # image_mode: cover
   android: true
   ios: true
   fullscreen: true
   color: "#ffffff"   
   android_gravity: center
   android_12:
-    image: "assets/splash.jpg"
+    image: "assets/splash1.jpeg"
     fullscreen: true
-    icon_background_color: "#ffffff"
-    image_dark: "assets/splash.jpg"
-    icon_background_color_dark: "#ffffff"
+    # icon_background_color: "#ffffff"
+    image_dark: "assets/splash1.jpeg"
+    # icon_background_color_dark: "#ffffff"
 
 
